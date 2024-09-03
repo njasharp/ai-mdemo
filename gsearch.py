@@ -315,8 +315,7 @@ with col1:
 
 with col2:
     st.subheader("Information Panel")
-    st.write("Details")
-    st.text_area("Details", value=st.session_state.conversations[st.session_state.active_conversation].get("details", ""), height=400, key="details_area")
+    st.text_area("Details", value=st.session_state.conversations[st.session_state.active_conversation].get("details", ""), height=600, key="details_area")
 
 # Footer with additional options
 st.markdown("<div style='text-align: center; color: grey;'>Powered by Groq</div>", unsafe_allow_html=True)
