@@ -148,14 +148,14 @@ def advanced_steps(query, model_id):
         return None, None, None, None
 
 # Function to search and summarize using Groq API
-def search_and_summarize(query, model_id, context="", reasoning_type="Single-path", selected_task=None):
+def search_and_summarize(query, model_id, system_prompt, context="", reasoning_type="Single-path", selected_task=None):
     try:
         with st.spinner("Searching and summarizing..."):
             if reasoning_type == "Multi-path" and selected_task:
                 prompt = multi_path_reasoning(selected_task)
                 query = f"{query}\n\n{prompt}"
             messages = [
-                {"role": "system", "content": "You are a helpful assistant that provides summaries and details based on user queries and given context."},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": f"Context: {context}\n\nQuery: {query}\n\nReasoning Type: {reasoning_type}\n\nPlease provide a summary and details for this query, considering the given context if relevant."}
             ]
             chat_completion = client.chat.completions.create(
@@ -165,10 +165,10 @@ def search_and_summarize(query, model_id, context="", reasoning_type="Single-pat
             )
             response = chat_completion.choices[0].message.content
             summary, details = response.split("\n\n", 1) if "\n\n" in response else (response, "No detailed information available.")
-        return summary, details, messages[0]["content"]  # Return the system prompt
+        return summary, details
     except Exception as e:
         st.error(f"An error occurred: {str(e)}")
-        return None, None, None
+        return None, None
 
 # Streamlit UI layout
 st.set_page_config(layout="wide", page_title="Enhanced Groq Search App")
@@ -176,7 +176,7 @@ st.image("p1.png", width=160)
 
 # Initialize session state
 if "conversations" not in st.session_state:
-    st.session_state.conversations = {"2024-04-15 15:27:16": {"summary": "", "details": "", "system_prompt": ""}}
+    st.session_state.conversations = {"2024-04-15 15:27:16": {"summary": "", "details": "", "system_prompt": "You are a helpful assistant that provides summaries and details based on user queries and given context."}}
 if "files" not in st.session_state:
     st.session_state.files = {}
 if "selected_model" not in st.session_state:
@@ -187,8 +187,6 @@ if "reasoning_type" not in st.session_state:
     st.session_state.reasoning_type = "Single-path"
 if "selected_task" not in st.session_state:
     st.session_state.selected_task = "Research and Information Retrieval"
-if "advance_steps" not in st.session_state:
-    st.session_state.advance_steps = False
 
 # Sidebar for model selection, conversations, reasoning type, and file management
 with st.sidebar:
@@ -200,7 +198,7 @@ with st.sidebar:
     
     if st.button("New Conversation"):
         new_conv = time.strftime("%Y-%m-%d %H:%M:%S")
-        st.session_state.conversations[new_conv] = {"summary": "", "details": "", "system_prompt": ""}
+        st.session_state.conversations[new_conv] = {"summary": "", "details": "", "system_prompt": "You are a helpful assistant that provides summaries and details based on user queries and given context."}
         st.session_state.active_conversation = new_conv
         st.rerun()
     
@@ -245,7 +243,8 @@ with st.sidebar:
         model_id = SUPPORTED_MODELS[st.session_state.selected_model]
         reasoning_type = st.session_state.reasoning_type
         selected_task = st.session_state.selected_task if reasoning_type == "Multi-path" else None
-        
+        system_prompt = st.session_state.conversations[st.session_state.active_conversation].get("system_prompt", "")
+
         if reasoning_type == "Advance Steps":
             with st.spinner("Executing advanced steps..."):
                 improved_prompt, generated_response, review_feedback, analysis_summary = advanced_steps(context, model_id)
@@ -253,11 +252,10 @@ with st.sidebar:
                 st.session_state.conversations[st.session_state.active_conversation]["details"] = f"Improved Prompt:\n{improved_prompt}\n\nGenerated Response:\n{generated_response}\n\nReview Feedback:\n{review_feedback}"
         else:
             with st.spinner("Generating report..."):
-                report_summary, report_details, system_prompt = search_and_summarize(f"Generate a detailed report for the file: {selected_file}", model_id, context, reasoning_type, selected_task)
+                report_summary, report_details = search_and_summarize(f"Generate a detailed report for the file: {selected_file}", model_id, system_prompt, context, reasoning_type, selected_task)
                 if report_summary and report_details:
                     st.session_state.conversations[st.session_state.active_conversation]["summary"] = report_summary
                     st.session_state.conversations[st.session_state.active_conversation]["details"] = report_details
-                    st.session_state.conversations[st.session_state.active_conversation]["system_prompt"] = system_prompt
                 else:
                     st.session_state.conversations[st.session_state.active_conversation]["summary"] = "Failed to generate report."
                     st.session_state.conversations[st.session_state.active_conversation]["details"] = "An error occurred during report generation."
@@ -276,6 +274,7 @@ with col1:
             model_id = SUPPORTED_MODELS[st.session_state.selected_model]
             reasoning_type = st.session_state.reasoning_type
             selected_task = st.session_state.selected_task if reasoning_type == "Multi-path" else None
+            system_prompt = st.session_state.conversations[st.session_state.active_conversation].get("system_prompt", "")
             
             if reasoning_type == "Advance Steps":
                 with st.spinner("Executing advanced steps..."):
@@ -283,11 +282,10 @@ with col1:
                     st.session_state.conversations[st.session_state.active_conversation]["summary"] = analysis_summary
                     st.session_state.conversations[st.session_state.active_conversation]["details"] = f"Improved Prompt:\n{improved_prompt}\n\nGenerated Response:\n{generated_response}\n\nReview Feedback:\n{review_feedback}"
             else:
-                summary, details, system_prompt = search_and_summarize(user_input, model_id, context, reasoning_type, selected_task)
+                summary, details = search_and_summarize(user_input, model_id, system_prompt, context, reasoning_type, selected_task)
                 if summary and details:
                     st.session_state.conversations[st.session_state.active_conversation]["summary"] = summary
                     st.session_state.conversations[st.session_state.active_conversation]["details"] = details
-                    st.session_state.conversations[st.session_state.active_conversation]["system_prompt"] = system_prompt
         else:
             st.warning("Please enter a query to search.")
 
@@ -297,23 +295,23 @@ with col1:
             model_id = SUPPORTED_MODELS[st.session_state.selected_model]
             reasoning_type = st.session_state.reasoning_type
             selected_task = st.session_state.selected_task if reasoning_type == "Multi-path" else None
-            
+            system_prompt = st.session_state.conversations[st.session_state.active_conversation].get("system_prompt", "")
+
             if reasoning_type == "Advance Steps":
                 with st.spinner("Executing advanced steps..."):
                     improved_prompt, generated_response, review_feedback, analysis_summary = advanced_steps(user_input, model_id)
                     st.session_state.conversations[st.session_state.active_conversation]["summary"] = analysis_summary
                     st.session_state.conversations[st.session_state.active_conversation]["details"] = f"Improved Prompt:\n{improved_prompt}\n\nGenerated Response:\n{generated_response}\n\nReview Feedback:\n{review_feedback}"
             else:
-                summary, details, system_prompt = search_and_summarize(user_input, model_id, context, reasoning_type, selected_task)
+                summary, details = search_and_summarize(user_input, model_id, system_prompt, context, reasoning_type, selected_task)
                 if summary and details:
                     st.session_state.conversations[st.session_state.active_conversation]["summary"] = summary
                     st.session_state.conversations[st.session_state.active_conversation]["details"] = details
-                    st.session_state.conversations[st.session_state.active_conversation]["system_prompt"] = system_prompt
 
     st.text_area("Response", value=st.session_state.conversations[st.session_state.active_conversation].get("summary", ""), height=200, key="response_area")
 
-    # Display the system prompt below the response box
-    st.text_area("System Prompt", value=st.session_state.conversations[st.session_state.active_conversation].get("system_prompt", ""), height=100, key="system_prompt_area", disabled=True)
+    # Display the editable system prompt below the response box
+    st.session_state.conversations[st.session_state.active_conversation]["system_prompt"] = st.text_area("System Prompt", value=st.session_state.conversations[st.session_state.active_conversation].get("system_prompt", ""), height=100, key="system_prompt_area")
 
 with col2:
     st.subheader("Information Panel")
