@@ -41,12 +41,58 @@ def extract_text_from_file(file_content, file_name):
 
 # Function to handle multi-path reasoning using the ReAct framework
 def multi_path_reasoning(selected_task):
-    # Your task-specific logic goes here
-    # This part of your code is unchanged
-    pass
+    if selected_task == "Research and Information Retrieval":
+        return """
+        Thought 1: I need to gather detailed information about the impact of climate change on coastal cities. 
+        Act 1: Search["impact of climate change on coastal cities"] 
+        Obs 1: The search results include scientific articles, government reports, and case studies on the impact of rising sea levels on coastal cities.
+        Thought 2: The information seems scattered. I need to focus on retrieving case studies from government reports.
+        Act 2: Search["case studies from government reports on rising sea levels"] 
+        Obs 2: Found multiple case studies from NOAA and the EPA detailing the impact on specific cities. 
+        Thought 3: I have enough case studies but need to summarize key points.
+        Act 3: Summarize["key points from case studies on rising sea levels"] 
+        Act 4: Finish[summary of key points]
+        """
+    elif selected_task == "Code Debugging":
+        return """
+        Thought 1: I need to debug a Python script that’s throwing a TypeError.
+        Act 1: Review["Python script TypeError"] 
+        Obs 1: The TypeError is due to a mismatch in data types when calling a function.
+        Thought 2: I should identify the exact line causing the error and check the data types involved.
+        Act 2: Inspect["line of code causing TypeError and data types"] 
+        Obs 2: The error is occurring because an integer is being passed where a string is expected.
+        Thought 3: I need to correct the data type mismatch and rerun the script.
+        Act 3: Modify["correct data type from integer to string"] 
+        Act 4: Finish[rerun the script]
+        """
+    elif selected_task == "Content Generation":
+        return """
+        Thought 1: I need to write a blog post on the benefits of AI in healthcare.
+        Act 1: Generate["outline for blog post on AI in healthcare"] 
+        Obs 1: The outline includes sections on diagnostic tools, personalized medicine, and operational efficiency.
+        Thought 2: I should expand the section on personalized medicine with examples.
+        Act 2: Research["examples of personalized medicine using AI"] 
+        Obs 2: Found examples of AI-driven treatments for cancer and diabetes.
+        Thought 3: I can now draft the personalized medicine section with these examples.
+        Act 3: Write["draft section on personalized medicine with AI examples"] 
+        Act 4: Finish[draft complete]
+        """
+    elif selected_task == "Strategic Planning":
+        return """
+        Thought 1: I need to develop a strategic plan for increasing customer retention.
+        Act 1: Identify["key factors affecting customer retention"] 
+        Obs 1: Key factors include product satisfaction, customer support quality, and engagement strategies.
+        Thought 2: I should focus on improving customer support and engagement strategies.
+        Act 2: Develop["action plan for improving customer support and engagement"] 
+        Obs 2: Created a plan including personalized communication, regular feedback loops, and loyalty programs.
+        Thought 3: I need to present this plan to the executive team.
+        Act 3: Prepare["presentation for executive team on customer retention strategies"] 
+        Act 4: Finish[presentation ready]
+        """
+    return ""
 
 # Function to handle advanced steps: prompt improvement, response, review, and analysis
-def advanced_steps(query, model_id, temperature):
+def advanced_steps(query, model_id):
     try:
         # Step 1: Improve the original prompt
         with st.spinner("Improving the prompt..."):
@@ -57,7 +103,6 @@ def advanced_steps(query, model_id, temperature):
                 ],
                 model=model_id,
                 max_tokens=500,
-                temperature=temperature,  # Include temperature adjustment
             )
             improved_prompt = improved_prompt_response.choices[0].message.content
 
@@ -69,7 +114,6 @@ def advanced_steps(query, model_id, temperature):
                 ],
                 model=model_id,
                 max_tokens=1000,
-                temperature=temperature,  # Include temperature adjustment
             )
             generated_response = response.choices[0].message.content
 
@@ -82,7 +126,6 @@ def advanced_steps(query, model_id, temperature):
                 ],
                 model=model_id,
                 max_tokens=500,
-                temperature=temperature,  # Include temperature adjustment
             )
             review_feedback = review_response.choices[0].message.content
 
@@ -95,7 +138,6 @@ def advanced_steps(query, model_id, temperature):
                 ],
                 model=model_id,
                 max_tokens=500,
-                temperature=temperature,  # Include temperature adjustment
             )
             analysis_summary = analysis_response.choices[0].message.content
 
@@ -106,7 +148,7 @@ def advanced_steps(query, model_id, temperature):
         return None, None, None, None
 
 # Function to search and summarize using Groq API
-def search_and_summarize(query, model_id, system_prompt, context="", reasoning_type="Single-path", selected_task=None, temperature=0.7):
+def search_and_summarize(query, model_id, system_prompt, context="", reasoning_type="Single-path", selected_task=None):
     try:
         with st.spinner("Searching and summarizing..."):
             if reasoning_type == "Multi-path" and selected_task:
@@ -120,7 +162,6 @@ def search_and_summarize(query, model_id, system_prompt, context="", reasoning_t
                 messages=messages,
                 model=model_id,
                 max_tokens=1000,
-                temperature=temperature,  # Include temperature adjustment
             )
             response = chat_completion.choices[0].message.content
             summary, details = response.split("\n\n", 1) if "\n\n" in response else (response, "No detailed information available.")
@@ -187,17 +228,6 @@ with st.sidebar:
             ("Research and Information Retrieval", "Code Debugging", "Content Generation", "Strategic Planning")
         )
     
-    # Adding the temperature slider
-    st.header("Temperature Adjustment")
-    st.session_state.temperature = st.slider(
-        'Temperature',
-        min_value=0.0,
-        max_value=1.0,
-        value=0.97,  # Set default temperature to 0.97
-        step=0.01
-    )
-    st.write(f'Selected Temperature: {st.session_state.temperature}')
-    
     st.header("File Upload")
     uploaded_file = st.file_uploader("Choose a file", type=["txt", "pdf", "docx"])
     if uploaded_file is not None:
@@ -205,10 +235,34 @@ with st.sidebar:
         text_content = extract_text_from_file(file_contents, uploaded_file.name)
         st.session_state.files[uploaded_file.name] = text_content
         st.success(f"File {uploaded_file.name} uploaded and processed successfully!")
+    
+    st.header("File Index")
+    selected_file = st.selectbox("Select a file", list(st.session_state.files.keys()))
+    if st.button("Generate Report") and selected_file:
+        context = st.session_state.files[selected_file]
+        model_id = SUPPORTED_MODELS[st.session_state.selected_model]
+        reasoning_type = st.session_state.reasoning_type
+        selected_task = st.session_state.selected_task if reasoning_type == "Multi-path" else None
+        system_prompt = st.session_state.conversations[st.session_state.active_conversation].get("system_prompt", "")
 
-    # Other sidebar components like file management
+        if reasoning_type == "Advance Steps":
+            with st.spinner("Executing advanced steps..."):
+                improved_prompt, generated_response, review_feedback, analysis_summary = advanced_steps(context, model_id)
+                st.session_state.conversations[st.session_state.active_conversation]["summary"] = analysis_summary
+                st.session_state.conversations[st.session_state.active_conversation]["details"] = f"Improved Prompt:\n{improved_prompt}\n\nGenerated Response:\n{generated_response}\n\nReview Feedback:\n{review_feedback}"
+        else:
+            with st.spinner("Generating report..."):
+                report_summary, report_details = search_and_summarize(f"Generate a detailed report for the file: {selected_file}", model_id, system_prompt, context, reasoning_type, selected_task)
+                if report_summary and report_details:
+                    st.session_state.conversations[st.session_state.active_conversation]["summary"] = report_summary
+                    st.session_state.conversations[st.session_state.active_conversation]["details"] = report_details
+                else:
+                    st.session_state.conversations[st.session_state.active_conversation]["summary"] = "Failed to generate report."
+                    st.session_state.conversations[st.session_state.active_conversation]["details"] = "An error occurred during report generation."
 
-# Rest of your app logic
+        st.rerun()
+
+# Main panel for displaying the search input and results
 col1, col2 = st.columns([1, 2])
 
 with col1:
@@ -221,20 +275,38 @@ with col1:
             reasoning_type = st.session_state.reasoning_type
             selected_task = st.session_state.selected_task if reasoning_type == "Multi-path" else None
             system_prompt = st.session_state.conversations[st.session_state.active_conversation].get("system_prompt", "")
-            temperature = st.session_state.temperature  # Get selected temperature
             
             if reasoning_type == "Advance Steps":
                 with st.spinner("Executing advanced steps..."):
-                    improved_prompt, generated_response, review_feedback, analysis_summary = advanced_steps(user_input, model_id, temperature)
+                    improved_prompt, generated_response, review_feedback, analysis_summary = advanced_steps(user_input, model_id)
                     st.session_state.conversations[st.session_state.active_conversation]["summary"] = analysis_summary
                     st.session_state.conversations[st.session_state.active_conversation]["details"] = f"Improved Prompt:\n{improved_prompt}\n\nGenerated Response:\n{generated_response}\n\nReview Feedback:\n{review_feedback}"
             else:
-                summary, details = search_and_summarize(user_input, model_id, system_prompt, context, reasoning_type, selected_task, temperature)
+                summary, details = search_and_summarize(user_input, model_id, system_prompt, context, reasoning_type, selected_task)
                 if summary and details:
                     st.session_state.conversations[st.session_state.active_conversation]["summary"] = summary
                     st.session_state.conversations[st.session_state.active_conversation]["details"] = details
         else:
             st.warning("Please enter a query to search.")
+
+    if st.button("Regenerate"):
+        if st.session_state.conversations[st.session_state.active_conversation]["summary"]:
+            context = st.session_state.files.get(selected_file, "") if selected_file else ""
+            model_id = SUPPORTED_MODELS[st.session_state.selected_model]
+            reasoning_type = st.session_state.reasoning_type
+            selected_task = st.session_state.selected_task if reasoning_type == "Multi-path" else None
+            system_prompt = st.session_state.conversations[st.session_state.active_conversation].get("system_prompt", "")
+
+            if reasoning_type == "Advance Steps":
+                with st.spinner("Executing advanced steps..."):
+                    improved_prompt, generated_response, review_feedback, analysis_summary = advanced_steps(user_input, model_id)
+                    st.session_state.conversations[st.session_state.active_conversation]["summary"] = analysis_summary
+                    st.session_state.conversations[st.session_state.active_conversation]["details"] = f"Improved Prompt:\n{improved_prompt}\n\nGenerated Response:\n{generated_response}\n\nReview Feedback:\n{review_feedback}"
+            else:
+                summary, details = search_and_summarize(user_input, model_id, system_prompt, context, reasoning_type, selected_task)
+                if summary and details:
+                    st.session_state.conversations[st.session_state.active_conversation]["summary"] = summary
+                    st.session_state.conversations[st.session_state.active_conversation]["details"] = details
 
     st.text_area("Response", value=st.session_state.conversations[st.session_state.active_conversation].get("summary", ""), height=200, key="response_area")
 
