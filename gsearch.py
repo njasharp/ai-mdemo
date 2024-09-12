@@ -39,6 +39,30 @@ def extract_text_from_file(file_content, file_name):
     else:
         return "Unsupported file type"
 
+# Enhanced System Prompt Logic
+def enhanced_system_prompt(query):
+    prompt = f"""
+    <thinking>
+    1. Begin analyzing the question: "{query}"
+    2. Plan of action:
+        a. Briefly outline the approach.
+        b. Present a step-by-step reasoning process.
+        c. Use "Chain of Thought" reasoning if needed, breaking it into steps.
+        d. Consider alternative solutions if applicable.
+    </thinking>
+
+    <reflection>
+    1. Review reasoning.
+    2. Check for potential errors, optimizations, or enhancements.
+    3. Reflect on alternative approaches, if any.
+    </reflection>
+
+    <output>
+    Provide final answer based on the above reasoning and reflection.
+    </output>
+    """
+    return prompt
+
 # Function to handle multi-path reasoning using the ReAct framework
 def multi_path_reasoning(selected_task):
     if selected_task == "Research and Information Retrieval":
@@ -109,9 +133,7 @@ def advanced_steps(query, model_id):
         # Step 2: Get the response for the improved prompt
         with st.spinner("Generating response for the improved prompt..."):
             response = client.chat.completions.create(
-                messages=[
-                    {"role": "user", "content": improved_prompt}
-                ],
+                messages=[{"role": "user", "content": improved_prompt}],
                 model=model_id,
                 max_tokens=1000,
             )
@@ -219,7 +241,7 @@ with st.sidebar:
     st.header("Advanced Prompt Reasoning")
     st.session_state.reasoning_type = st.radio(
         "Select Reasoning Type",
-        ("Single-path", "Multi-path", "Advance Steps")
+        ("Single-path", "Multi-path", "Advance Steps", "Enhanced System Prompt")
     )
     
     if st.session_state.reasoning_type == "Multi-path":
@@ -250,6 +272,17 @@ with st.sidebar:
                 improved_prompt, generated_response, review_feedback, analysis_summary = advanced_steps(context, model_id)
                 st.session_state.conversations[st.session_state.active_conversation]["summary"] = analysis_summary
                 st.session_state.conversations[st.session_state.active_conversation]["details"] = f"Improved Prompt:\n{improved_prompt}\n\nGenerated Response:\n{generated_response}\n\nReview Feedback:\n{review_feedback}"
+        elif reasoning_type == "Enhanced System Prompt":
+            with st.spinner("Generating enhanced prompt response..."):
+                system_prompt = enhanced_system_prompt(context)
+                response = client.chat.completions.create(
+                    messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": context}],
+                    model=model_id,
+                    max_tokens=1000,
+                )
+                generated_response = response.choices[0].message.content
+                st.session_state.conversations[st.session_state.active_conversation]["summary"] = generated_response
+
         else:
             with st.spinner("Generating report..."):
                 report_summary, report_details = search_and_summarize(f"Generate a detailed report for the file: {selected_file}", model_id, system_prompt, context, reasoning_type, selected_task)
@@ -281,6 +314,16 @@ with col1:
                     improved_prompt, generated_response, review_feedback, analysis_summary = advanced_steps(user_input, model_id)
                     st.session_state.conversations[st.session_state.active_conversation]["summary"] = analysis_summary
                     st.session_state.conversations[st.session_state.active_conversation]["details"] = f"Improved Prompt:\n{improved_prompt}\n\nGenerated Response:\n{generated_response}\n\nReview Feedback:\n{review_feedback}"
+            elif reasoning_type == "Enhanced System Prompt":
+                with st.spinner("Generating enhanced prompt response..."):
+                    system_prompt = enhanced_system_prompt(user_input)
+                    response = client.chat.completions.create(
+                        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_input}],
+                        model=model_id,
+                        max_tokens=1000,
+                    )
+                    generated_response = response.choices[0].message.content
+                    st.session_state.conversations[st.session_state.active_conversation]["summary"] = generated_response
             else:
                 summary, details = search_and_summarize(user_input, model_id, system_prompt, context, reasoning_type, selected_task)
                 if summary and details:
@@ -302,6 +345,16 @@ with col1:
                     improved_prompt, generated_response, review_feedback, analysis_summary = advanced_steps(user_input, model_id)
                     st.session_state.conversations[st.session_state.active_conversation]["summary"] = analysis_summary
                     st.session_state.conversations[st.session_state.active_conversation]["details"] = f"Improved Prompt:\n{improved_prompt}\n\nGenerated Response:\n{generated_response}\n\nReview Feedback:\n{review_feedback}"
+            elif reasoning_type == "Enhanced System Prompt":
+                with st.spinner("Generating enhanced prompt response..."):
+                    system_prompt = enhanced_system_prompt(user_input)
+                    response = client.chat.completions.create(
+                        messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_input}],
+                        model=model_id,
+                        max_tokens=1000,
+                    )
+                    generated_response = response.choices[0].message.content
+                    st.session_state.conversations[st.session_state.active_conversation]["summary"] = generated_response
             else:
                 summary, details = search_and_summarize(user_input, model_id, system_prompt, context, reasoning_type, selected_task)
                 if summary and details:
