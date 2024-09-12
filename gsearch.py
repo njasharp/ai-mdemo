@@ -324,6 +324,7 @@ with col1:
                     )
                     generated_response = response.choices[0].message.content
                     st.session_state.conversations[st.session_state.active_conversation]["summary"] = generated_response
+                    st.session_state.conversations[st.session_state.active_conversation]["details"] = generated_response
             else:
                 summary, details = search_and_summarize(user_input, model_id, system_prompt, context, reasoning_type, selected_task)
                 if summary and details:
@@ -355,6 +356,7 @@ with col1:
                     )
                     generated_response = response.choices[0].message.content
                     st.session_state.conversations[st.session_state.active_conversation]["summary"] = generated_response
+                    st.session_state.conversations[st.session_state.active_conversation]["details"] = generated_response
             else:
                 summary, details = search_and_summarize(user_input, model_id, system_prompt, context, reasoning_type, selected_task)
                 if summary and details:
