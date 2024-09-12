@@ -374,4 +374,4 @@ with col2:
 
 # Footer with additional options
 st.markdown("<div style='text-align: center; color: grey;'>Powered by Groq</div>", unsafe_allow_html=True)
-st.info("build by dw 9-3-24")
+st.info("build by dw 9-12-24")
